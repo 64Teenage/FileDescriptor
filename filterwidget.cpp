@@ -197,9 +197,11 @@ FilterWidget::processBarChanged(long val) {
 void
 FilterWidget::processDescriptorChanged(ResultData data) {
     DEG_LOG("receive process end signal");
+
     mProcessComboBox->setDisabled(false);
     mThreadComboBox->setDisabled(false);
     mFilePathButton->setDisabled(false);
+
 }
 
 void

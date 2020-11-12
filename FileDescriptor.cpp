@@ -92,6 +92,42 @@ FileDescriptor::processedLine() {
     }
 }
 
+FileDescriptor::ResultData
+FileDescriptor::getResult() {
+    {
+        //wait for threadpool to finish all jobs
+        std::unique_lock<std::mutex> lock(mSuccessLock);
+        mSuccessCond.wait(lock, [&](){return !mProcessLine;});
+    }
+
+    ResultData data;
+    for(auto it = mBadFileMap.begin(); it != mBadFileMap.end(); ++it) {
+        std::priority_queue<Status, std::vector<Status>, std::greater<Status>> rank;
+        while(!it->second.empty()) {
+            auto node = it->second.front();
+            it->second.pop();
+            if(std::get<1>(node.get()) > mFileTimeMap[it->first]) {
+                continue;
+            }
+            if(rank.size() == PRINTLEN) {
+                rank.push(node);
+                rank.pop();
+            } else {
+                rank.push(node);
+            }
+        }
+
+        std::vector<Status> status;
+        while(!rank.empty()) {
+            auto node = rank.top();
+            rank.pop();
+            status.push_back(node);
+        }
+        data.insert({it->first, status});
+    }
+    return data;
+}
+
 void    
 FileDescriptor::dump() {
     {
@@ -143,6 +179,7 @@ FileDescriptor::FileDescriptor(
 ) : mProcessId(-1)
   , mThreadCnt(1)
   , mpThreadPool(nullptr)
+  , mProcessLine(0)
   , mMaxProcessLine(0) {
     mCloseGraph.clear();
     mOpenGraph.clear();
@@ -192,6 +229,7 @@ FileDescriptor::detectEBADF() {
         //int num = 0;
 
         mProcessLine = 0;
+        mMaxProcessLine = 0;
 
         //ThreadPool * pPoolInstance = ThreadPool::getInstance();
 

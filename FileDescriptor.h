@@ -41,7 +41,7 @@ private:
 
 class FileDescriptor {
 private:
-
+    using ResultData = std::unordered_map<fd_t, std::vector<Status>>;
 
 public:
     FileDescriptor(const FileDescriptor &) = delete;
@@ -55,6 +55,7 @@ public:
     void    setFilePath(const std::string file);
     void    setProcessThread(unsigned int threads);
     long    processedLine();
+    ResultData  getResult();
 
 private:
     static std::vector<std::pair<int,std::string>>    

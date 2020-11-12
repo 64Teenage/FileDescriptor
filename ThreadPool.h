@@ -53,6 +53,7 @@ public:
                 element.join();
             }
         }
+        DEG_LOG("Thread Service exit ...");
         
     }
 

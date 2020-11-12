@@ -6,6 +6,7 @@
 #include <QtCore/QThread>
 #include <QtCore/QHash>
 #include <QtCore/QQueue>
+#include <QtCore/QVector>
 #include <QtCore/QMetaType>
 #include <unordered_map>
 #include <queue>
@@ -14,17 +15,32 @@
 
 #include "QUtil.h"
 
+struct ResultData {
+    QHash<fd_t,QVector<Status>>  mapGraph;
+    operator QHash<fd_t,QVector<Status>> () const {
+        return mapGraph;
+    }
+};
+
+Q_DECLARE_METATYPE(ResultData);
+
 class QProcessThread: public QThread {
     Q_OBJECT
 public:
-    explicit QProcessThread(QObject *parent = 0): QThread(parent){}
+    explicit QProcessThread(QObject *parent = 0): QThread(parent){
+        qRegisterMetaType<ResultData>("ResultData");
+    }
     explicit QProcessThread(
         FileDescriptor      *pHandler, 
         const QString       file, 
-        const unsigned int  threads
-    ) : mpFileDescriptor(pHandler)
+        const unsigned int  threads,
+        QObject             *parent = 0
+    ) : QThread(parent)
+      , mpFileDescriptor(pHandler)
       , mFilePath(file)
-      , mThreadNum(threads){}
+      , mThreadNum(threads){
+          qRegisterMetaType<ResultData>("ResultData");
+      }
 
     void initResources(
         FileDescriptor      *pHandler, 
@@ -44,14 +60,19 @@ protected:
         mpFileDescriptor->setFilePath(strFilePath);
         mpFileDescriptor->setProcessId(2038);
         mpFileDescriptor->setProcessThread(mThreadNum);
-        //mpFileDescriptor->process();
+        mpFileDescriptor->process();
+        auto res = mpFileDescriptor->getResult();
         DEG_LOG("process end xxx");
-        QHash<fd_t,QQueue<Status>> rank;
-        emit notify(rank);
+        ResultData data;
+        for(auto it = res.begin(); it != res.end(); ++it) {
+            QVector<Status> rank = QVector<Status>::fromStdVector(it->second);
+            data.mapGraph.insert(it->first, rank);
+        }
+        emit notify(data);
     }
 
 signals:
-    void    notify(QHash<fd_t,QQueue<Status>>);
+    void    notify(ResultData);
 
 
 private:
@@ -68,9 +89,9 @@ class QBarThread: public QThread {
 public:
     explicit QBarThread(QObject *parent = 0): QThread(parent){}
     explicit QBarThread(FileDescriptor * pHandler, const long lines, QObject * parent)
-        : mpFileDescriptor(pHandler)
-          , mFileLines(lines)
-          , QThread(parent){}
+        : QThread(parent)
+        , mpFileDescriptor(pHandler)
+        , mFileLines(lines){}
 
     void    initResources(FileDescriptor * pHandler, const long lines) {
         mpFileDescriptor = pHandler;
@@ -83,6 +104,11 @@ protected:
         while(true) {
             long nlines = mpFileDescriptor->processedLine();
             DEG_LOG("PROCESS LINE: %d", nlines);
+            if(nlines >= 2 * mFileLines) {
+                long schedual = 1.0 * nlines / 2 / mFileLines * 100;
+                emit notify(schedual);
+                break;
+            }
             if(nlines == lineBefore) {
                 continue;
             } else {

@@ -36,7 +36,6 @@ class FilterWidget : public QWidget
 {
     Q_OBJECT
 private:
-    using ResultData = QHash<fd_t,QQueue<Status>>;
 
 public:
     FilterWidget(QWidget *parent = 0);
