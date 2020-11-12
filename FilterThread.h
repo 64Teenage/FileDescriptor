@@ -13,14 +13,8 @@
 //#include <string>
 #include "FileDescriptor.h"
 
-#include "QUtil.h"
 
-struct ResultData {
-    QHash<fd_t,QVector<Status>>  mapGraph;
-    operator QHash<fd_t,QVector<Status>> () const {
-        return mapGraph;
-    }
-};
+using ResultData = QHash<fd_t,QVector<Status>>;
 
 Q_DECLARE_METATYPE(ResultData);
 
@@ -32,41 +26,28 @@ public:
     }
     explicit QProcessThread(
         FileDescriptor      *pHandler, 
-        const QString       file, 
-        const unsigned int  threads,
         QObject             *parent = 0
     ) : QThread(parent)
-      , mpFileDescriptor(pHandler)
-      , mFilePath(file)
-      , mThreadNum(threads){
+      , mpFileDescriptor(pHandler){
           qRegisterMetaType<ResultData>("ResultData");
       }
 
     void initResources(
-        FileDescriptor      *pHandler, 
-        const QString       file, 
-        const unsigned int  threads
+        FileDescriptor      *pHandler
     ) {
         mpFileDescriptor = pHandler;
-        mFilePath = file;
-        mThreadNum = threads;
     }
 
 protected:
     void run() {
-        DEG_LOG("process begin xxx");
-        std::string strFilePath = mFilePath.toStdString();
-        DEG_LOG("FileDescriptor(%p) set File enter %s", mpFileDescriptor, strFilePath.c_str());
-        mpFileDescriptor->setFilePath(strFilePath);
-        mpFileDescriptor->setProcessId(2038);
-        mpFileDescriptor->setProcessThread(mThreadNum);
+        DEG_LOG("process(%p) begin xxx", mpFileDescriptor);
         mpFileDescriptor->process();
         auto res = mpFileDescriptor->getResult();
-        DEG_LOG("process end xxx");
+        DEG_LOG("process(%p) end xxx", mpFileDescriptor);
         ResultData data;
         for(auto it = res.begin(); it != res.end(); ++it) {
             QVector<Status> rank = QVector<Status>::fromStdVector(it->second);
-            data.mapGraph.insert(it->first, rank);
+            data.insert(it->first, rank);
         }
         emit notify(data);
     }
@@ -77,9 +58,6 @@ signals:
 
 private:
     FileDescriptor  *mpFileDescriptor = nullptr;
-    QString         mFilePath;
-    unsigned int    mThreadNum;
-
 };
 
 
@@ -112,7 +90,7 @@ protected:
             if(nlines == lineBefore) {
                 continue;
             } else {
-                long schedual = 1.0 * nlines / 2 / mFileLines * 100;
+                double schedual = 1.0 * nlines / 2 / mFileLines * 100;
                 lineBefore = nlines;
                 emit notify(schedual);
             }
@@ -123,7 +101,7 @@ protected:
     }
 
 signals:
-    void notify(long);
+    void notify(double);
 
 private:
     FileDescriptor  *mpFileDescriptor = nullptr;

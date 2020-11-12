@@ -18,8 +18,8 @@ FilterWidget::FilterWidget(QWidget *parent)
 , mThreadComboBox(createThreadBox())
 , mFilePathButton(new QPushButton())
 , mProcessButton(createProcessButton())
-, mpProcessHandler(new HandlerThread())
 , mProcessBar(createProcessBar())
+, mpProcessHandler(new HandlerThread())
 , mpBarThread(new QBarThread())
 , mpProcessThread(new QProcessThread())
 {
@@ -98,7 +98,7 @@ FilterWidget::connectSignal(){
             this, &FilterWidget::logFilePathChanged);
     connect(mProcessButton, static_cast<void (QPushButton::*)(bool)>(&QPushButton::clicked),
             this, &FilterWidget::processButtonClicked);
-    connect(mpBarThread, static_cast<void (QBarThread::*)(long)>(&QBarThread::notify),
+    connect(mpBarThread, static_cast<void (QBarThread::*)(double)>(&QBarThread::notify),
             this, &FilterWidget::processBarChanged);
     connect(mpProcessThread, static_cast<void (QProcessThread::*)(ResultData)>(&QProcessThread::notify),
             this, &FilterWidget::processDescriptorChanged);
@@ -140,8 +140,10 @@ QProgressBar*
 FilterWidget::createProcessBar() const {
     QProgressBar *processBar = new QProgressBar();
     processBar->setMinimum(0);
-    processBar->setMaximum(100);
+    processBar->setMaximum(1000);
     processBar->setValue(0);
+    processBar->setFormat(tr("Current progress : %1%").arg(QString::number(0, 'f', 1)));  
+    processBar->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     return processBar;
 }
 
@@ -190,8 +192,10 @@ FilterWidget::logFilePathChanged() {
 }
 
 void
-FilterWidget::processBarChanged(long val) {
-    mProcessBar->setValue( val);
+FilterWidget::processBarChanged(double val) {
+    mProcessBar->setValue( val * 10);
+    mProcessBar->setFormat(tr("Current progress : %1%").arg(QString::number(val, 'f', 1)));  
+    mProcessBar->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
 }
 
 void
@@ -201,6 +205,24 @@ FilterWidget::processDescriptorChanged(ResultData data) {
     mProcessComboBox->setDisabled(false);
     mThreadComboBox->setDisabled(false);
     mFilePathButton->setDisabled(false);
+
+    for(auto it = data.begin(); it != data.end(); ++it) {
+        std::cout<<"Bad File Descriptor: "<< it.key()<<std::endl;
+
+        for( auto & element : it.value()) {
+            auto node = element.get();
+            FDSTATUS status = std::get<2>(node);
+            std::cout<<"\t"<<std::get<0>(node)<<"\t";
+            if(status == FDSTATUS::OPENING) {
+                std::cout<<"Opening\t";
+            } else if(status == FDSTATUS::DUMPING) {
+                std::cout<<"Dumping\t";
+            } else if(status == FDSTATUS::CLOSED) {
+                std::cout<<"CLOSED\t";
+            }
+            std::cout<<std::get<1>(node)<<std::endl;
+        }
+    }
 
 }
 
@@ -212,12 +234,12 @@ FilterWidget::processButtonClicked() {
     mFilePathButton->setDisabled(true);
     DEG_LOG("set ui disable end xxx");
     
-
-    // process log
-    // 耗时任务放到子线程，避免UI线程卡死
-    mpProcessThread->initResources(mFileDescriptor, mFilePath, mThreadNum);
+    // 数据处理（耗时任务）放到子线程，避免UI线程卡死
+    mFileDescriptor->initResources(2038, mFilePath.toStdString(), mThreadNum);
+    mpProcessThread->initResources(mFileDescriptor);
     mpProcessThread->start();
 
+    //获取数据处理进度，子线程
     mpBarThread->initResources(mFileDescriptor, mProcessLine);
     mpBarThread->start();
 

@@ -49,11 +49,10 @@ public:
 
 public:
     static FileDescriptor*  getInstance();  
+    void    initResources(pid_t, const std::string, unsigned);
     void    process();  
-    void    dump();
-    void    setProcessId(pid_t pid);
-    void    setFilePath(const std::string file);
-    void    setProcessThread(unsigned int threads);
+    //void    dump();
+
     long    processedLine();
     ResultData  getResult();
 
@@ -62,6 +61,10 @@ private:
         doProcess(const std::string, pid_t pid);
     static std::tuple<pid_t, fd_t, std::string, fd_t> 
         regexProcess(const std::regex & pattern, const std::string & line);
+
+    void    setProcessId(pid_t pid);
+    void    setFilePath(const std::string file);
+    void    setProcessThread(unsigned int threads);
 
 private:
     FileDescriptor();

@@ -6,6 +6,7 @@
 #include <QtWidgets/QPushButton>
 #include <QtWidgets/QProgressBar>
 #include <QtCore/QThread>
+#include <QtCore/QMetaType>
 
 #include "FileDescriptor.h"
 #include "HandlerThread.h"
@@ -31,7 +32,6 @@ enum class PROCESSMODE {
 Q_DECLARE_METATYPE(PROCESSMODE);
 
 
-
 class FilterWidget : public QWidget
 {
     Q_OBJECT
@@ -42,13 +42,11 @@ public:
     ~FilterWidget();
 
 private Q_SLOTS:
-    //void        updateUI();
-
     void        processBoxChanged();
     void        threadBoxChanged();
     void        logFilePathChanged();
     void        processButtonClicked();
-    void        processBarChanged(long val);
+    void        processBarChanged(double val);
     void        processDescriptorChanged(ResultData);
 
 private:

@@ -23,33 +23,33 @@ std::regex FilePattern::Close_Unfinish("^([0-9]*) *(.*) .*close\\(([0-9]*) <.*\\
 std::regex FilePattern::Close_BadFile("^([0-9]*) *(.*) .*close\\(([0-9]*)\\) .*= (-*[0-9]*) .*Bad file descriptor.*");
 
 /******************* public function ********************************/
-void
-FileDescriptor::setProcessId(
-    pid_t   pid
-) {
-    mProcessId = pid;
-}
-
-void
-FileDescriptor::setFilePath(
-    const std::string   file
-) {
-    mFilePath = file;
-    DEG_LOG("set process file: %s", mFilePath.c_str());
-}
-
-void
-FileDescriptor::setProcessThread(
-    unsigned int    threads
-) {
-    mThreadCnt = threads > std::thread::hardware_concurrency() ? std::thread::hardware_concurrency() : threads;
-    DEG_LOG("set process thread: %d", mThreadCnt);
-}
-
 FileDescriptor*
 FileDescriptor::getInstance() {
     static FileDescriptor instance;
     return &instance;
+}
+
+void
+FileDescriptor::initResources(
+    pid_t               pid,
+    const std::string   file,
+    unsigned            threads
+) {
+    setProcessId(pid);
+    setFilePath(file);
+    setProcessThread(threads);
+
+    mProcessLine = 0;
+    mMaxProcessLine = 0;
+
+    mCloseGraph.clear();
+    mOpenGraph.clear();
+    mBadFileMap.clear();
+    mMapGraph.clear();
+    for(fd_t fd = 0; fd < 1024; ++fd) {
+        mMapGraph[fd] = Status(-1, "", FDSTATUS::CLOSED);
+    }
+    DEG_LOG("File Descriptor init ....");
 }
 
 void
@@ -66,7 +66,6 @@ FileDescriptor::process() {
         std::cerr<<mFilePath<<" do not exist!"<<std::endl;
         return ;
     } else {
-        //ThreadPool * pPoolInstance = ThreadPool::getInstance();
         std::string line;
         while(std::getline(in, line)) {
             if(line.find("openat") != std::string::npos) {
@@ -128,51 +127,6 @@ FileDescriptor::getResult() {
     return data;
 }
 
-void    
-FileDescriptor::dump() {
-    {
-        //wait for threadpool to finish all jobs
-        std::unique_lock<std::mutex> lock(mSuccessLock);
-        mSuccessCond.wait(lock, [&](){return !mProcessLine;});
-    }
-
-    for(auto it = mBadFileMap.begin(); it != mBadFileMap.end(); ++it) {
-        std::cout<<"Bad File Descriptor: "<< it->first<<std::endl;
-
-        std::priority_queue<Status, std::vector<Status>, std::greater<Status>> rank;
-        while(!it->second.empty()) {
-            auto node = it->second.front();
-            it->second.pop();
-            if(std::get<1>(node.get()) > mFileTimeMap[it->first]) {
-                continue;
-            }
-            if(rank.size() == PRINTLEN) {
-                rank.push(node);
-                rank.pop();
-            } else {
-                rank.push(node);
-            }
-        }
-
-        while(!rank.empty()) {
-            auto element = rank.top();
-            rank.pop();
-            auto node = element.get();
-            FDSTATUS status = std::get<2>(node);
-            std::cout<<"\t"<<std::get<0>(node)<<"\t";
-            if(status == FDSTATUS::OPENING) {
-                std::cout<<"Opening\t";
-            } else if(status == FDSTATUS::DUMPING) {
-                std::cout<<"Dumping\t";
-            } else if(status == FDSTATUS::CLOSED) {
-                std::cout<<"CLOSED\t";
-            }
-            std::cout<<std::get<1>(node)<<std::endl;
-            
-        }
-    }
-}
-
 
 /******************* private function ********************************/
 FileDescriptor::FileDescriptor(
@@ -187,8 +141,29 @@ FileDescriptor::FileDescriptor(
     for(fd_t fd = 0; fd < 1024; ++fd) {
         mMapGraph[fd] = Status(-1, "", FDSTATUS::CLOSED);
     }
+}
 
-    
+void
+FileDescriptor::setProcessId(
+    pid_t   pid
+) {
+    mProcessId = pid;
+}
+
+void
+FileDescriptor::setFilePath(
+    const std::string   file
+) {
+    mFilePath = file;
+    DEG_LOG("set process file: %s", mFilePath.c_str());
+}
+
+void
+FileDescriptor::setProcessThread(
+    unsigned int    threads
+) {
+    mThreadCnt = threads > std::thread::hardware_concurrency() ? std::thread::hardware_concurrency() : threads;
+    DEG_LOG("set process thread: %d", mThreadCnt);
 }
 
 std::tuple<pid_t, fd_t, std::string, fd_t>
