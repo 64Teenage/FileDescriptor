@@ -55,6 +55,7 @@ FileDescriptor::initResources(
 void
 FileDescriptor::process() {
     mpThreadPool = ThreadPool::getInstance(mThreadCnt);
+    mpThreadPool->adjust(mThreadCnt);
     detectEBADF();
 
     std::cout<<"Detect Bad File Descriptor end xxx"<<std::endl;

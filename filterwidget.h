@@ -55,6 +55,7 @@ private:
     QComboBox*      createThreadBox() const;
     QPushButton*    createProcessButton() const;
     QProgressBar*   createProcessBar() const;
+    QPushButton*    createLogButton() const;
 
     void            initUIResources();
 

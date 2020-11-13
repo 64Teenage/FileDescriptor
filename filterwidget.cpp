@@ -16,7 +16,7 @@ FilterWidget::FilterWidget(QWidget *parent)
 : QWidget(parent)
 , mProcessComboBox(createProcessBox())
 , mThreadComboBox(createThreadBox())
-, mFilePathButton(new QPushButton())
+, mFilePathButton(createLogButton())
 , mProcessButton(createProcessButton())
 , mProcessBar(createProcessBar())
 , mpProcessHandler(new HandlerThread())
@@ -126,6 +126,7 @@ FilterWidget::createThreadBox() const {
     }
     threadComboBox->setCurrentIndex(0);
     DEG_LOG("Create ThreadBox: %p, Success.", threadComboBox);
+    threadComboBox->setFixedSize(50, 23);
     return threadComboBox;
 }
 QPushButton*    
@@ -133,6 +134,7 @@ FilterWidget::createProcessButton() const {
     QPushButton *processButton = new QPushButton();
     processButton->setText("process");
     DEG_LOG("Create ProcessButton: %p, Success", processButton);
+    processButton->setFixedSize(80,23);
     return processButton;
 }
 
@@ -144,7 +146,17 @@ FilterWidget::createProcessBar() const {
     processBar->setValue(0);
     processBar->setFormat(tr("Current progress : %1%").arg(QString::number(0, 'f', 1)));  
     processBar->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    
+    processBar->setFixedWidth(490);
     return processBar;
+}
+
+QPushButton*
+FilterWidget::createLogButton() const {
+    QPushButton *logButton = new QPushButton();
+    logButton->setFixedSize(140, 23);
+
+    return logButton;
 }
 
 void
@@ -233,6 +245,8 @@ FilterWidget::processButtonClicked() {
     mThreadComboBox->setDisabled(true);
     mFilePathButton->setDisabled(true);
     DEG_LOG("set ui disable end xxx");
+
+    DEG_LOG("Button width: %d, height: %d", mProcessButton->width(), mProcessButton->height());
     
     // 数据处理（耗时任务）放到子线程，避免UI线程卡死
     mFileDescriptor->initResources(2038, mFilePath.toStdString(), mThreadNum);

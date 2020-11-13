@@ -81,7 +81,7 @@ protected:
         long lineBefore = 0;
         while(true) {
             long nlines = mpFileDescriptor->processedLine();
-            DEG_LOG("PROCESS LINE: %d", nlines);
+            //DEG_LOG("PROCESS LINE: %d", nlines);
             if(nlines >= 2 * mFileLines) {
                 long schedual = 1.0 * nlines / 2 / mFileLines * 100;
                 emit notify(schedual);
